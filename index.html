@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Inventário</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f5f7fa; padding: 16px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
+        h2 { color: #2c3e50; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #34495e; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-sm { padding: 5px 12px; font-size: 0.85rem; }
+        .btn-block { width: 100%; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .inventory-item { background: white; border-radius: 8px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid #3498db; }
+        .item-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+        .item-local { font-weight: 700; color: #2c3e50; font-size: 1.1rem; }
+        .item-date { color: #7f8c8d; font-size: 0.85rem; }
+        .item-details { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 8px 0; }
+        .item-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin: 8px 0; object-fit: cover; }
+        .item-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .empty-state { text-align: center; color: #95a5a6; padding: 40px 20px; }
+        .memory-info { background: #ecf0f1; padding: 10px; border-radius: 8px; margin-top: 15px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; padding: 20px; z-index: 1000; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #95a5a6; padding: 0 10px; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2c3e50; color: white; padding: 12px 24px; border-radius: 8px; z-index: 2000; display: none; text-align: center; max-width: 90%; }
+        .toast.show { display: block; animation: slideUp 0.3s ease-out; }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .toast.warning { background: #f39c12; }
+        @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+        .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .image-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .btn-camera { background: #2ecc71; color: white; }
+        .btn-gallery { background: #3498db; color: white; }
+        .file-input-label { display: block; padding: 10px; background: #ecf0f1; border: 2px dashed #bdc3c7; border-radius: 8px; text-align: center; color: #7f8c8d; cursor: pointer; }
+        .image-preview-form { max-width: 100%; max-height: 150px; border-radius: 8px; margin: 10px 0; display: none; object-fit: cover; }
+        .image-status { font-size: 0.85rem; color: #27ae60; margin-top: 5px; display: none; }
+        .image-status.active { display: block; }
+        .image-status.uploading { color: #f39c12; }
+        .image-status.error { color: #e74c3c; }
+        .db-info { font-size: 0.9rem; color: #2c3e50; margin-top: 8px; padding: 8px; background: #e8f4fd; border-radius: 4px; }
+        .login-box { max-width: 400px; margin: 50px auto; }
+        .toggle-link { color: #3498db; cursor: pointer; text-decoration: underline; }
+        .hidden { display: none !important; }
+        .user-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } .actions .btn { width: 100%; } }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN / CADASTRO -->
+<div id="loginSection" class="card login-box">
+    <h2 id="authTitle" style="margin-bottom:20px;">🔐 Login</h2>
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="seu@email.com">
+    </div>
+    <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="senha" placeholder="Mínimo 6 caracteres">
+    </div>
+    <button class="btn btn-primary btn-block" id="btnLogin" onclick="login()">Entrar</button>
+    <button class="btn btn-success btn-block hidden" id="btnCadastrar" onclick="cadastrar()">Cadastrar</button>
+    <div style="text-align:center; margin-top:15px;">
+        <span id="toggleText">Não tem conta?</span>
+        <span class="toggle-link" id="toggleLink" onclick="toggleAuth()">Cadastre-se</span>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="mainSection" style="display:none;">
+    <div class="user-bar">
+        <h1 style="margin:0;">📦 Inventário</h1>
+        <div>
+            <span id="userEmail" style="color:#7f8c8d; margin-right:15px; font-size:0.9rem;"></span>
+            <button class="btn btn-danger btn-sm" onclick="logout()">🚪 Sair</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-bottom:15px;">➕ Novo Item</h2>
+        <form id="itemForm">
+            <div class="form-group">
+                <label>📍 Local *</label>
+                <input type="text" id="local" placeholder="Ex: Sala, Cozinha" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📌 Item *</label>
+                    <input type="text" id="item" placeholder="Nome do item" required>
+                </div>
+                <div class="form-group">
+                    <label>💰 Valor (R$) *</label>
+                    <input type="number" id="valor" placeholder="0,00" step="0.01" min="0" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📂 Categoria</label>
+                <input type="text" id="categoria" placeholder="Ex: Eletrônicos, Móveis">
+            </div>
+            <div class="form-group">
+                <label>📝 Observação</label>
+                <textarea id="observacao" placeholder="Descrição..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>📷 Imagem</label>
+                <div class="image-options">
+                    <button type="button" class="btn btn-camera" onclick="abrirCamera('imagem')">📸 Câmera</button>
+                    <button type="button" class="btn btn-gallery" onclick="abrirGaleria('imagem')">🖼️ Galeria</button>
+                </div>
+                <input type="file" id="imagem" accept="image/*" style="display:none">
+                <div class="file-input-label" onclick="document.getElementById('imagem').click()">📸 Clique para selecionar imagem</div>
+                <img id="imagePreviewForm" class="image-preview-form">
+                <div class="image-status" id="imageStatus">✅ Imagem pronta</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="btnAddItem">Adicionar ao Inventário</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="actions">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar itens..." style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px;">
+            <button class="btn btn-secondary" onclick="exportarJSON()">📤 Exportar JSON</button>
+            <button class="btn btn-danger" onclick="liberarMemoria()">🗑️ Apagar Tudo</button>
+        </div>
+        <div class="loading" id="loading"><div class="spinner"></div><br>Carregando dados...</div>
+        <div id="inventoryList"></div>
+        <div class="memory-info">
+            <strong>💾 Status:</strong> <span id="itemCount">0</span> itens
+            <div class="db-info" id="dbInfo">Supabase conectado</div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDIÇÃO -->
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>✏️ Editar Item</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editForm">
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>📍 Local *</label>
+                <input type="text" id="editLocal" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📌 Item *</label>
+                    <input type="text" id="editItem" required>
+                </div>
+                <div class="form-group">
+                    <label>💰 Valor (R$) *</label>
+                    <input type="number" id="editValor" step="0.01" min="0" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📂 Categoria</label>
+                <input type="text" id="editCategoria">
+            </div>
+            <div class="form-group">
+                <label>📝 Observação</label>
+                <textarea id="editObservacao"></textarea>
+            </div>
+            <div class="form-group">
+                <label>📷 Imagem</label>
+                <div class="image-options">
+                    <button type="button" class="btn btn-camera" onclick="abrirCamera('editImagem')">📸 Câmera</button>
+                    <button type="button" class="btn btn-gallery" onclick="abrirGaleria('editImagem')">🖼️ Galeria</button>
+                </div>
+                <input type="file" id="editImagem" accept="image/*" style="display:none">
+                <div class="file-input-label" onclick="document.getElementById('editImagem').click()">📸 Clique para selecionar imagem</div>
+                <img id="editImagePreview" class="image-preview-form">
+                <div class="image-status" id="editImageStatus">✅ Imagem pronta</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="btnSaveEdit">Salvar Alterações</button>
+        </form>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
+  }
+}
+</script>
+
+<script type="module">
+import { createClient } from '@supabase/supabase-js';
+
+// ============================================================
+// CONFIGURAÇÃO — JÁ ADAPTADA AO SEU PROJETO
+// ============================================================
+const SUPABASE_URL = 'https://vsgvvhaanifwjdjuzwtv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_CzhRPVakcyiIUF7hte5YPQ__Gj4631D';
+const BUCKET = 'inventario-imagens';
+const TABELA = 'inventario';
+
+// Mapeamento de colunas (código → banco real)
+const COL = {
+    id: 'id',
+    user_id: 'user_id',
+    local: 'local',
+    item: 'nome',
+    categoria: 'categoria',
+    observacao: 'descricao',
+    valor: 'valor',
+    imagem: 'imagem',
+    imagem_path: 'imagem_path',
+    created_at: 'created_at'
+};
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let usuarioLogado = null;
+let inventory = [];
+let modoCadastro = false;
+let pendingImageNew = null;
+let pendingImageEdit = null;
+
+// ===================== TOAST =====================
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type + ' show';
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+window.showToast = showToast;
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function safeExt(file) {
+    const name = file.name || 'img.jpg';
+    const ext = name.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+}
+
+// ===================== AUTH =====================
+window.toggleAuth = function() {
+    modoCadastro = !modoCadastro;
+    document.getElementById('authTitle').textContent = modoCadastro ? '📝 Cadastro' : '🔐 Login';
+    document.getElementById('btnLogin').classList.toggle('hidden', modoCadastro);
+    document.getElementById('btnCadastrar').classList.toggle('hidden', !modoCadastro);
+    document.getElementById('toggleText').textContent = modoCadastro ? 'Já tem conta?' : 'Não tem conta?';
+    document.getElementById('toggleLink').textContent = modoCadastro ? 'Faça login' : 'Cadastre-se';
+};
+
+window.cadastrar = async function() {
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value;
+    if (!email || !senha) return showToast('Preencha email e senha!', 'error');
+    if (senha.length < 6) return showToast('Senha mínima de 6 caracteres!', 'error');
+
+    const btn = document.getElementById('btnCadastrar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Cadastrando...';
+
+    const { data, error } = await supabase.auth.signUp({ email, password: senha });
+
+    btn.disabled = false;
+    btn.textContent = 'Cadastrar';
+
+    if (error) {
+        if (error.message.includes('already registered')) showToast('❌ Email já cadastrado!', 'error');
+        else showToast('❌ ' + error.message, 'error');
+        return;
+    }
+    showToast(data.session ? '✅ Conta criada e logada!' : '✅ Cadastro feito! Faça login.', 'success');
+    if (!data.session && modoCadastro) toggleAuth();
+};
+
+window.login = async function() {
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value;
+    if (!email || !senha) return showToast('Preencha email e senha!', 'error');
+
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true;
+    btn.textContent = '⏳ Entrando...';
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+
+    if (error) return showToast('❌ Email ou senha incorretos!', 'error');
+    usuarioLogado = data.user;
+    showToast('✅ Bem-vindo!', 'success');
+    mostrarApp(true);
+    carregarItens();
+};
+
+window.logout = async function() {
+    await supabase.auth.signOut();
+    usuarioLogado = null;
+    mostrarApp(false);
+    showToast('✅ Desconectado!', 'success');
+};
+
+function mostrarApp(logado) {
+    document.getElementById('loginSection').style.display = logado ? 'none' : 'block';
+    document.getElementById('mainSection').style.display = logado ? 'block' : 'none';
+    if (logado && usuarioLogado) {
+        document.getElementById('userEmail').textContent = '👤 ' + usuarioLogado.email;
+        document.getElementById('dbInfo').textContent = '✅ Conectado ao Supabase';
+    }
+}
+
+// ===================== IMAGENS =====================
+async function uploadImage(file, prefix = 'img') {
+    if (!usuarioLogado) throw new Error('Faça login primeiro');
+
+    const blob = await compressImage(file, 1280, 1280, 0.85);
+    const ext = safeExt(file);
+    const stamp = Date.now();
+    const rand = Math.random().toString(36).slice(2, 8);
+    const path = usuarioLogado.id + '/' + prefix + '_' + stamp + '_' + rand + '.' + ext;
+
+    const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, blob, {
+            contentType: 'image/jpeg',
+            upsert: false,
+            cacheControl: '31536000'
+        });
+    if (upErr) throw upErr;
+
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    return { path: path, url: pub.publicUrl };
+}
+
+async function deleteImageByPath(path) {
+    if (!path) return;
+    try {
+        await supabase.storage.from(BUCKET).remove([path]);
+    } catch (e) {
+        console.warn('Falha ao remover imagem:', e);
+    }
+}
+
+function compressImage(file, maxSize = 1280, quality = 0.85) {
+    return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                let width = img.width;
+                let height = img.height;
+                const maxDim = Math.max(width, height);
+                if (maxDim > maxSize) {
+                    const ratio = maxSize / maxDim;
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                canvas.toBlob(
+                    function(blob) { blob ? resolve(blob) : reject(new Error('Falha ao comprimir')); },
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ===================== CRUD =====================
+async function carregarItens(filtro) {
+    if (!usuarioLogado) return;
+    filtro = filtro || '';
+    const loading = document.getElementById('loading');
+    loading.classList.add('active');
+
+    try {
+        let query = supabase.from(TABELA).select('*').order(COL.created_at, { ascending: false });
+        if (filtro) {
+            query = query.or(COL.local + '.ilike.%' + filtro + '%,' + COL.item + '.ilike.%' + filtro + '%,' + COL.observacao + '.ilike.%' + filtro + '%');
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+
+        inventory = (data || []).map(function(r) {
+            return {
+                id: r[COL.id],
+                local: r[COL.local] || '',
+                item: r[COL.item] || '',
+                categoria: r[COL.categoria] || '',
+                observacao: r[COL.observacao] || '',
+                valor: Number(r[COL.valor] || 0).toFixed(2),
+                imagem: r[COL.imagem] || '',
+                imagem_path: r[COL.imagem_path] || '',
+                dataCadastro: new Date(r[COL.created_at]).toLocaleString('pt-BR')
+            };
+        });
+
+        renderInventory();
+        document.getElementById('itemCount').textContent = inventory.length;
+    } catch (e) {
+        console.error(e);
+        showToast('❌ Erro ao carregar: ' + e.message, 'error');
+    } finally {
+        loading.classList.remove('active');
+    }
+}
+window.carregarItens = carregarItens;
+
+async function addItem(local, item, categoria, observacao, valor, img) {
+    const row = {};
+    row[COL.user_id] = usuarioLogado.id;
+    row[COL.local] = local;
+    row[COL.item] = item;
+    row[COL.categoria] = categoria || null;
+    row[COL.observacao] = observacao || null;
+    row[COL.valor] = parseFloat(valor);
+    row[COL.imagem] = img ? img.url : null;
+    row[COL.imagem_path] = img ? img.path : null;
+
+    const { error } = await supabase.from(TABELA).insert([row]);
+    if (error) { showToast('❌ ' + error.message, 'error'); return false; }
+    await carregarItens();
+    return true;
+}
+
+async function updateItem(id, local, item, categoria, observacao, valor, img) {
+    const row = {};
+    row[COL.local] = local;
+    row[COL.item] = item;
+    row[COL.categoria] = categoria || null;
+    row[COL.observacao] = observacao || null;
+    row[COL.valor] = parseFloat(valor);
+    row[COL.imagem] = img ? img.url : null;
+    row[COL.imagem_path] = img ? img.path : null;
+
+    const { error } = await supabase.from(TABELA).update(row).eq(COL.id, id);
+    if (error) { showToast('❌ ' + error.message, 'error'); return false; }
+    await carregarItens();
+    return true;
+}
+
+async function deleteItem(id) {
+    const item = inventory.find(function(i) { return String(i.id) === String(id); });
+    if (item && item.imagem_path) await deleteImageByPath(item.imagem_path);
+
+    const { error } = await supabase.from(TABELA).delete().eq(COL.id, id);
+    if (error) { showToast('❌ ' + error.message, 'error'); return false; }
+    await carregarItens();
+    return true;
+}
+
+
+// ===================== CÂMERA / GALERIA =====================
+window.abrirCamera = function(inputId) {
+    const input = document.getElementById(inputId);
+    input.setAttribute('capture', 'environment');
+    input.click();
+    setTimeout(function() { input.removeAttribute('capture'); }, 500);
+};
+
+window.abrirGaleria = function(inputId) {
+    const input = document.getElementById(inputId);
+    input.removeAttribute('capture');
+    input.click();
+};
+
+// ===================== HANDLER IMAGEM — NOVO ITEM =====================
+document.getElementById('imagem').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) { pendingImageNew = null; return; }
+
+    const status = document.getElementById('imageStatus');
+    const preview = document.getElementById('imagePreviewForm');
+
+    const localUrl = URL.createObjectURL(file);
+    preview.src = localUrl;
+    preview.style.display = 'block';
+
+    status.textContent = '⏳ Enviando imagem...';
+    status.className = 'image-status active uploading';
+
+    if (pendingImageNew && pendingImageNew.path) {
+        await deleteImageByPath(pendingImageNew.path);
+    }
+
+    try {
+        pendingImageNew = await uploadImage(file, 'novo');
+        preview.src = pendingImageNew.url;
+        status.textContent = '✅ Imagem enviada';
+        status.className = 'image-status active';
+    } catch (e) {
+        console.error(e);
+        showToast('❌ Falha no upload: ' + e.message, 'error');
+        pendingImageNew = null;
+        preview.style.display = 'none';
+        status.className = 'image-status';
+    } finally {
+        URL.revokeObjectURL(localUrl);
+    }
+});
+
+// ===================== HANDLER IMAGEM — EDITAR =====================
+document.getElementById('editImagem').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) { pendingImageEdit = null; return; }
+
+    const status = document.getElementById('editImageStatus');
+    const preview = document.getElementById('editImagePreview');
+
+    const localUrl = URL.createObjectURL(file);
+    preview.src = localUrl;
+    preview.style.display = 'block';
+
+    status.textContent = '⏳ Enviando imagem...';
+    status.className = 'image-status active uploading';
+
+    if (pendingImageEdit && pendingImageEdit.path) {
+        await deleteImageByPath(pendingImageEdit.path);
+    }
+
+    try {
+        pendingImageEdit = await uploadImage(file, 'edit');
+        preview.src = pendingImageEdit.url;
+        status.textContent = '✅ Imagem enviada';
+        status.className = 'image-status active';
+    } catch (e) {
+        console.error(e);
+        showToast('❌ Falha no upload: ' + e.message, 'error');
+        pendingImageEdit = null;
+        preview.style.display = 'none';
+        status.className = 'image-status';
+    } finally {
+        URL.revokeObjectURL(localUrl);
+    }
+});
+
+// ===================== FORM NOVO ITEM =====================
+document.getElementById('itemForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const local = document.getElementById('local').value.trim();
+    const item = document.getElementById('item').value.trim();
+    const categoria = document.getElementById('categoria').value.trim();
+    const observacao = document.getElementById('observacao').value.trim();
+    const valor = document.getElementById('valor').value;
+
+    if (!local || !item || !valor) {
+        showToast('Preencha Local, Item e Valor!', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnAddItem');
+    btn.disabled = true;
+    btn.textContent = '⏳ Salvando...';
+
+    try {
+        const ok = await addItem(local, item, categoria, observacao, valor, pendingImageNew);
+        if (ok) {
+            this.reset();
+            document.getElementById('imagePreviewForm').style.display = 'none';
+            document.getElementById('imageStatus').className = 'image-status';
+            document.getElementById('imageStatus').textContent = '✅ Imagem pronta';
+            pendingImageNew = null;
+            showToast('✅ Item adicionado!');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Adicionar ao Inventário';
+    }
+});
+
+// ===================== FORM EDITAR =====================
+document.getElementById('editForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('editId').value;
+    const local = document.getElementById('editLocal').value.trim();
+    const item = document.getElementById('editItem').value.trim();
+    const categoria = document.getElementById('editCategoria').value.trim();
+    const observacao = document.getElementById('editObservacao').value.trim();
+    const valor = document.getElementById('editValor').value;
+
+    if (!local || !item || !valor) {
+        showToast('Preencha Local, Item e Valor!', 'error');
+        return;
+    }
+
+    const atual = inventory.find(function(i) { return String(i.id) === String(id); });
+    const btn = document.getElementById('btnSaveEdit');
+    btn.disabled = true;
+    btn.textContent = '⏳ Salvando...';
+
+    try {
+        // Se não escolheu nova imagem, mantém a atual
+        let img = pendingImageEdit;
+        if (!img && atual) {
+            img = { url: atual.imagem, path: atual.imagem_path };
+        }
+
+        // Se escolheu nova imagem, apaga a antiga do bucket
+        if (pendingImageEdit && atual && atual.imagem_path && atual.imagem_path !== pendingImageEdit.path) {
+            await deleteImageByPath(atual.imagem_path);
+        }
+
+        const ok = await updateItem(id, local, item, categoria, observacao, valor, img);
+        if (ok) {
+            closeEditModal();
+            showToast('✅ Item atualizado!');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Alterações';
+    }
+});
+
+// ===================== RENDERIZAÇÃO =====================
+function renderInventory() {
+    const list = document.getElementById('inventoryList');
+
+    if (inventory.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p style="font-size:3rem;">📭</p><p>Nenhum item cadastrado</p></div>';
+        return;
+    }
+
+    let html = '';
+    for (let i = 0; i < inventory.length; i++) {
+        const item = inventory[i];
+        html += '<div class="inventory-item">';
+        html += '<div class="item-header">';
+        html += '<span class="item-local">📍 ' + escapeHtml(item.local || '(sem local)') + '</span>';
+        html += '<span class="item-date">📅 ' + item.dataCadastro + '</span>';
+        html += '</div>';
+        html += '<div class="item-details">';
+        html += '<p><strong>📌 Item:</strong> ' + escapeHtml(item.item) + '</p>';
+        if (item.categoria) html += '<p><strong>📂 Categoria:</strong> ' + escapeHtml(item.categoria) + '</p>';
+        html += '<p><strong>💰 Valor:</strong> R$ ' + parseFloat(item.valor).toFixed(2) + '</p>';
+        if (item.observacao) html += '<p><strong>📝 Obs:</strong> ' + escapeHtml(item.observacao) + '</p>';
+        html += '</div>';
+        if (item.imagem) html += '<img src="' + item.imagem + '" class="item-image" loading="lazy" alt="Foto">';
+        html += '<div class="item-actions">';
+        html += '<button class="btn btn-warning btn-sm" onclick="editItem(\'' + item.id + '\')">✏️ Editar</button>';
+        html += '<button class="btn btn-danger btn-sm" onclick="excluirItem(\'' + item.id + '\')">🗑️ Excluir</button>';
+        html += '</div></div>';
+    }
+    list.innerHTML = html;
+}
+
+// ===================== EDITAR / EXCLUIR =====================
+window.editItem = function(id) {
+    const item = inventory.find(function(i) { return String(i.id) === String(id); });
+    if (!item) return;
+
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editLocal').value = item.local;
+    document.getElementById('editItem').value = item.item;
+    document.getElementById('editCategoria').value = item.categoria || '';
+    document.getElementById('editObservacao').value = item.observacao || '';
+    document.getElementById('editValor').value = parseFloat(item.valor);
+
+    pendingImageEdit = null;
+
+    const prev = document.getElementById('editImagePreview');
+    const status = document.getElementById('editImageStatus');
+    status.className = 'image-status';
+    status.textContent = '✅ Imagem pronta';
+
+    if (item.imagem) {
+        prev.src = item.imagem;
+        prev.style.display = 'block';
+    } else {
+        prev.style.display = 'none';
+        prev.src = '';
+    }
+
+    document.getElementById('editModal').classList.add('active');
+};
+
+window.closeEditModal = function() {
+    if (pendingImageEdit && pendingImageEdit.path) {
+        deleteImageByPath(pendingImageEdit.path);
+        pendingImageEdit = null;
+    }
+    document.getElementById('editModal').classList.remove('active');
+    document.getElementById('editForm').reset();
+    document.getElementById('editImagePreview').style.display = 'none';
+    document.getElementById('editImageStatus').className = 'image-status';
+};
+
+window.excluirItem = async function(id) {
+    const item = inventory.find(function(i) { return String(i.id) === String(id); });
+    if (!item) return;
+    if (confirm('Excluir "' + item.item + '" permanentemente?')) {
+        const ok = await deleteItem(id);
+        if (ok) showToast('🗑️ Item excluído!');
+    }
+};
+
+// ===================== EXPORTAR / APAGAR TUDO =====================
+window.exportarJSON = function() {
+    if (inventory.length === 0) {
+        showToast('Nada para exportar!', 'error');
+        return;
+    }
+    const blob = new Blob([JSON.stringify(inventory, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inventario_' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ ' + inventory.length + ' itens exportados!');
+};
+
+window.liberarMemoria = async function() {
+    if (inventory.length === 0) {
+        showToast('Já está vazio!', 'error');
+        return;
+    }
+    if (!confirm('⚠️ Excluir TODOS os ' + inventory.length + ' itens e suas imagens?')) return;
+
+    // Apaga imagens do bucket
+    for (let i = 0; i < inventory.length; i++) {
+        if (inventory[i].imagem_path) {
+            await deleteImageByPath(inventory[i].imagem_path);
+        }
+    }
+
+    const { error } = await supabase.from(TABELA).delete().eq(COL.user_id, usuarioLogado.id);
+    if (error) {
+        showToast('❌ ' + error.message, 'error');
+        return;
+    }
+    await carregarItens();
+    showToast('🗑️ Tudo removido!');
+};
+
+// ===================== BUSCA =====================
+document.getElementById('searchInput').addEventListener('input', function() {
+    carregarItens(this.value.trim());
+});
+
+// ===================== MODAL E ENTER =====================
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+document.getElementById('senha').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        if (modoCadastro) cadastrar();
+        else login();
+    }
+});
+
+// ===================== SESSÃO / INICIALIZAÇÃO =====================
+async function verificarSessao() {
+    try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+            usuarioLogado = data.session.user;
+            mostrarApp(true);
+            carregarItens();
+        } else {
+            mostrarApp(false);
+        }
+    } catch (e) {
+        console.error('Erro ao verificar sessão:', e);
+        mostrarApp(false);
+    }
+}
+
+supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' && session) {
+        usuarioLogado = session.user;
+        mostrarApp(true);
+        carregarItens();
+    }
+    if (event === 'SIGNED_OUT') {
+        usuarioLogado = null;
+        mostrarApp(false);
+    }
+});
+
+window.addEventListener('load', verificarSessao);
+
+console.log('✅ App iniciado');
+console.log('📦 Projeto:', SUPABASE_URL);
+console.log('📋 Tabela:', TABELA);
+console.log('🪣 Bucket:', BUCKET);
+</script>
+</body>
+</html>
